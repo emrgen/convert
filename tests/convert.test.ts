@@ -157,20 +157,35 @@ test('create unit of energy', () => {
   const energyDimension = Dimension.MASS.multiply(Dimension.LENGTH).pow(2).divide(Dimension.TIME.pow(2));
   const joule = new Unit('J', 'joule', energyDimension);
   const calorie = new Unit('cal', 'calorie', energyDimension, joule, new BigDecimal("4.184"));
+  const ev = new Unit('eV', 'electron-volt', energyDimension, joule, new BigDecimal("1.602176634E-19"));
+
   System.METRIC.register(joule);
   System.METRIC.register(calorie);
+  System.METRIC.register(ev);
 
   const btu = new Unit('btu', 'british-thermal-unit', energyDimension, joule, new BigDecimal("1055.05585"));
+  const hpHr = new Unit('hp-hr', 'horsepower-hour', energyDimension, joule, new BigDecimal("2684519.538"));
+
   System.IMPERIAL.register(btu);
+  System.IMPERIAL.register(hpHr);
 
   let j1 = Quantity.create(1, 'J');
   let btu1 = Quantity.create(1, 'btu');
   let cal1 = Quantity.create(1, 'cal');
+  let hpHr1 = Quantity.create(1, 'hp-hr');
 
   expect(j1.to('btu').round(5).value).toBe("0.00095");
   expect(btu1.to('J').round(5).value).toBe("1055.05585");
   expect(cal1.to('J').round(5).value).toBe("4.18400");
   expect(j1.to('cal').round(5).value).toBe("0.23901");
+  expect(j1.to('eV').round(5).value).toBe("6241509074460762607.77624");
+  expect(cal1.to('btu').round(5).value).toBe("0.00397");
+  expect(hpHr1.to('J').round(5).value).toBe("2684519.53800");
+  expect(j1.to('hp-hr').round(15).value).toBe("0.000000372506136");
+
+  // System.similarUnits('J').forEach(unit => {
+  //   console.log(unit.name);
+  // });
 });
 
 test('create unit of power', () => {

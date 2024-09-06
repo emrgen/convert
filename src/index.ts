@@ -1,5 +1,5 @@
 import BigDecimal from 'js-big-decimal';
-import {entries, isString, reduce, sum} from 'lodash';
+import {entries, flatten, isString, reduce, sum} from 'lodash';
 
 export class Quantity {
   amount: BigDecimal;
@@ -245,8 +245,8 @@ export class Unit {
     // console.log('fromBase', fromBase, toBase)
     // covert 1 unit from source to target unit
     const factor = Converter.convert(1, fromBase.unit, toBase.unit);
-
-    const amount = fromBase.amount.multiply(factor).divide(toBase.amount)
+    // console.log(fromBase.amount, factor, toBase.amount)
+    const amount = fromBase.amount.multiply(factor).divide(toBase.amount, 50);
 
     return new Quantity(amount, to);
   }
@@ -322,6 +322,10 @@ export class System {
     this.bases = new Map();
   }
 
+  static similarUnits(unit: Unit|string) {
+    return flatten(System.systems.map(system => system.similarUnits(unit)));
+  }
+
   similarUnits(unit: Unit|string) {
     if (isString(unit)) {
       unit = Unit.units.get(unit as string);
@@ -379,8 +383,8 @@ export class Converter {
     } else {
       fromUint = from as Unit;
     }
-    if (!fromUint.isSimilar(toUnit)) {
 
+    if (!fromUint.isSimilar(toUnit)) {
       throw new Error('Cannot to between different types');
     }
 
