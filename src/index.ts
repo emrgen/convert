@@ -125,6 +125,10 @@ export class QuantityUnit {
   //   return false;
   // }
 
+  round(precision: number) {
+    return new QuantityUnit(this.amount.round(precision), this.unit);
+  }
+
   isSimilar(q: QuantityUnit): boolean {
     return this.unit.isSimilar(q.unit);
   }
@@ -354,8 +358,9 @@ export class UnitConverter {
       throw new Error('Cannot to between different types');
     }
 
-    console.log('from', fromUint.toJSON())
-    console.log('to', toUnit.toJSON())
+    // console.log('from', fromUint.toJSON());
+    // console.log('to', toUnit.toJSON());
+    // console.log('');
 
     if (fromUint.eq(toUnit)) {
       return new BigDecimal(1);
@@ -377,12 +382,6 @@ export class UnitConverter {
     }
   }
 }
-
-// export class UnitSystemConverter {
-//   to(q: Quantity, to: UnitSystem): Quantity {
-//     return new Quantity();
-//   }
-// }
 
 class Initializer {
   static create() {
@@ -453,6 +452,13 @@ class Initializer {
     UnitSystem.IMPERIAL.register(yard);
     UnitSystem.IMPERIAL.register(mile);
 
+    // masses
+    const pound = new Unit('lb', 'pound', UnitType.MASS);
+    const ounce = new Unit('oz', 'ounce', UnitType.MASS, pound, new BigDecimal("0.0625"));
+
+    UnitSystem.IMPERIAL.register(pound);
+    UnitSystem.IMPERIAL.register(ounce);
+
     // time
     const minute = new Unit('min', 'minute', UnitType.TIME, second, 60);
     const hour = new Unit('h', 'hour', UnitType.TIME, second, 60*60);
@@ -476,8 +482,10 @@ class Initializer {
     UnitSystem.IMPERIAL.register(pair);
     UnitSystem.IMPERIAL.register(dozen);
 
+
     // conversions
     UnitConverter.register(meter, inch, new BigDecimal("39.3700787"));
+    UnitConverter.register(kilogram, pound, new BigDecimal("2.20462"));
   }
 }
 
