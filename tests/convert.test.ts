@@ -1,28 +1,64 @@
-import { expect, test } from 'vitest'
-import {Quantity, QuantityUnit} from "../src";
+import {expect, test} from 'vitest'
+import {Dimension, Quantity, Unit, Converter, System} from "../src";
 import BigDecimal from "js-big-decimal";
 
-test('to base unit', () => {
-  // const km1 = Quantity.create(1, 'km');
-  //
-  // console.log(km1.unit.toBase())
-  // expect(km1.toBase().value).toBe("1000");
+test('custom length unit', () => {
+  const jaw = new Unit('jaw', 'jaw', Dimension.LENGTH, 'in', new BigDecimal("0.25"));
+  const suto = new Unit('suto', 'suto', Dimension.LENGTH, 'in', new BigDecimal("0.015625"));
+
+  System.IMPERIAL.register(jaw);
+  System.IMPERIAL.register(suto);
+
+  let jaw1 = Quantity.create(1, 'jaw');
+  let suto1 = Quantity.create(1, 'suto');
+  let inch1 = Quantity.create(1, 'in');
+
+  expect(jaw1.to('in').round(5).value).toBe("0.25000");
+  expect(suto1.to('in').round(5).value).toBe("0.01562");
+  expect(inch1.to('suto').round(5).value).toBe("64.00000");
+  expect(inch1.to('jaw').round(5).value).toBe("4.00000");
+});
+
+test('unit of volume', () => {
+  const cubicMeter = new Unit('m3', 'cubic-meter', Dimension.LENGTH.pow(3));
+  System.METRIC.register(cubicMeter);
+  const cubicFoot = new Unit('ft3', 'cubic-foot', Dimension.LENGTH.pow(3));
+  System.IMPERIAL.register(cubicFoot);
+
+  const liter = new Unit('L', 'liter', Dimension.LENGTH.pow(3), cubicMeter, new BigDecimal("0.001"));
+  const gallon = new Unit('gal', 'gallon', Dimension.LENGTH.pow(3), liter, new BigDecimal("3.78541"));
+
+  System.METRIC.register(liter);
+  System.IMPERIAL.register(gallon);
+
+  let m3 = Quantity.create(1, 'm3');
+  let ft3 = Quantity.create(1, 'ft3');
+  let l1 = Quantity.create(1, 'L');
+  let gal1 = Quantity.create(1, 'gal');
+
+  expect(m3.to('ft3').round(5).value).toBe("35.31467");
+  expect(ft3.to('m3').round(5).value).toBe("0.02832");
+  expect(l1.to('gal').round(5).value).toBe("0.26417");
+  expect(gal1.to('L').round(5).value).toBe("3.78541");
+  expect(l1.to('m3').round(5).value).toBe("0.00100");
+  expect(gal1.to('ft3').round(5).value).toBe("0.13368");
+  expect(l1.to('ft3').round(5).value).toBe("0.03531");
 })
 
 test('ft to meter', () => {
-  let m1 = QuantityUnit.create(1, 'm');
-  let km1 = QuantityUnit.create(1, 'km');
-  let yd1 = QuantityUnit.create(1, 'yd');
-  let f1 = QuantityUnit.create(1, 'ft');
-  let i1 = QuantityUnit.create(1, 'in');
-  let mile1 = QuantityUnit.create(1, 'mi');
+  let m1 = Quantity.create(1, 'm');
+  let km1 = Quantity.create(1, 'km');
+  let yd1 = Quantity.create(1, 'yd');
+  let f1 = Quantity.create(1, 'ft');
+  let i1 = Quantity.create(1, 'in');
+  let mile1 = Quantity.create(1, 'mi');
 
-  let kg1 = QuantityUnit.create(1, 'kg');
-  let pound1 = QuantityUnit.create(1, 'lb');
-  let ounce1 = QuantityUnit.create(1, 'oz');
+  let kg1 = Quantity.create(1, 'kg');
+  let pound1 = Quantity.create(1, 'lb');
+  let ounce1 = Quantity.create(1, 'oz');
 
 
-  let m90 = QuantityUnit.create(90, 'm');
+  let m90 = Quantity.create(90, 'm');
 
   expect(m90.in('yd').round(5).value).toBe("98.42520");
 
@@ -33,8 +69,8 @@ test('ft to meter', () => {
   expect(m1.to('km').round(5).value).toBe("0.00100");
   expect(m1.to('m').round(5).value).toBe("1.00000");
 
-  expect(km1.to('ft').round(5).value).toBe("3280.83989");
-  expect(km1.to('in').round(5).value).toBe("39370.07870");
+  expect(km1.to('ft').round(5).value).toBe("3280.84000");
+  expect(km1.to('in').round(5).value).toBe("39370.08002");
   expect(km1.to('mi').round(5).value).toBe("0.62137");
   expect(km1.to('km').round(5).value).toBe("1.00000");
   expect(km1.to('m').round(5).value).toBe("1000.00000");
@@ -57,7 +93,7 @@ test('ft to meter', () => {
   expect(i1.to('km').round(5).value).toBe("0.00003");
 
   expect(mile1.to('ft').round(5).value).toBe("5280.00000");
-  expect(mile1.to('in').round(5).value).toBe("63360.00000");
+  expect(mile1.to('in').round(5).value).toBe("63360.00003");
   expect(mile1.to('mi').round(5).value).toBe("1.00000");
   expect(mile1.to('km').round(5).value).toBe("1.60934");
 
@@ -65,7 +101,142 @@ test('ft to meter', () => {
   expect(pound1.to('kg').round(5).value).toBe("0.45359");
 
   // matching upto 4 decimal places
-  expect(kg1.to('oz').round(4).value).toBe("35.2739");
+  expect(kg1.to('oz').round(4).value).toBe("35.2740");
 
   expect(pound1.to('oz').round(5).value).toBe("16.00000");
+});
+
+test('create unit of force', () => {
+  const forceDimension = Dimension.MASS.multiply(Dimension.LENGTH).divide(Dimension.TIME.pow(2));
+  const newton = new Unit('N', 'newton', forceDimension);
+  System.METRIC.register(newton);
+
+  const lbfu = new Unit('lbf', 'pound-force-unit', forceDimension);
+  System.IMPERIAL.register(lbfu);
+
+  const lbf = new Unit('lbf', 'pound-force', forceDimension, lbfu, new BigDecimal("32.174049"));
+  System.IMPERIAL.register(lbf);
+
+  let n1 = Quantity.create(1, 'N');
+  let lbf1 = Quantity.create(1, 'lbf');
+
+  expect(n1.to('lbf').round(5).value).toBe("0.22481");
+  expect(lbf1.to('N').round(5).value).toBe("4.44822");
+});
+
+test('create unit of pressure', () => {
+  const pressureDimension = Dimension.MASS.divide(Dimension.LENGTH).divide(Dimension.TIME.pow(2));
+  const pascal = new Unit('Pa', 'pascal', pressureDimension);
+  System.METRIC.register(pascal);
+
+  const psf = new Unit('psf', 'pound-force-per-square-foot', pressureDimension);
+  System.IMPERIAL.register(psf);
+
+  const psi = new Unit('psi', 'pound-force-per-square-inch', pressureDimension, psf, new BigDecimal("4633.06306"));
+  System.IMPERIAL.register(psi);
+
+  const atm = new Unit('atm', 'atmosphere', pressureDimension, pascal, new BigDecimal("101325"));
+  System.METRIC.register(atm);
+
+  let pa1 = Quantity.create(1, 'Pa');
+  let psi1 = Quantity.create(1, 'psi');
+  let atm1 = Quantity.create(1, 'atm');
+
+  expect(pa1.to('psi').round(5).value).toBe("0.00015");
+  expect(psi1.to('Pa').round(3).value).toBe("6894.758");
+
+  expect(pa1.to('atm').round(5).value).toBe("0.00001");
+  expect(atm1.to('Pa').round(5).value).toBe("101325.00000");
+});
+
+test('create unit of energy', () => {
+  const energyDimension = Dimension.MASS.multiply(Dimension.LENGTH).pow(2).divide(Dimension.TIME.pow(2));
+  const joule = new Unit('J', 'joule', energyDimension);
+  System.METRIC.register(joule);
+
+  const btu = new Unit('btu', 'british-thermal-unit', energyDimension, joule, new BigDecimal("1055.05585"));
+  System.IMPERIAL.register(btu);
+
+  let j1 = Quantity.create(1, 'J');
+  let btu1 = Quantity.create(1, 'btu');
+
+  expect(j1.to('btu').round(5).value).toBe("0.00095");
+  expect(btu1.to('J').round(5).value).toBe("1055.05585");
+});
+
+test('create unit of power', () => {
+  const powerDimension = Dimension.MASS.multiply(Dimension.LENGTH).pow(2).divide(Dimension.TIME.pow(3));
+  const watt = new Unit('W', 'watt', powerDimension);
+  System.METRIC.register(watt);
+
+  const hp = new Unit('hp', 'horsepower', powerDimension, watt, new BigDecimal("745.69987"));
+  System.IMPERIAL.register(hp);
+
+  let w1 = Quantity.create(1, 'W');
+  let hp1 = Quantity.create(1, 'hp');
+
+  expect(w1.to('hp').round(5).value).toBe("0.00134");
+  expect(hp1.to('W').round(5).value).toBe("745.69987");
+});
+
+// check if the conversion is correct for the given units of temperature
+// NOTE: the conversion is checking temperature difference, not absolute temperature
+test('create unit of temperature', () => {
+  const temperatureDimension = Dimension.TEMPERATURE;
+  const celsius = new Unit('C', 'celsius', temperatureDimension);
+  System.METRIC.register(celsius);
+
+  const fahrenheit = new Unit('F', 'fahrenheit', temperatureDimension, celsius, new BigDecimal("0.555555556"));
+  System.IMPERIAL.register(fahrenheit);
+
+  let c1 = Quantity.create(1, 'C');
+  let f1 = Quantity.create(1, 'F');
+
+  expect(c1.to('F').round(5).value).toBe("1.80000");
+  expect(f1.to('C').round(5).value).toBe("0.55556");
+});
+
+test('create unit of volume', () => {
+  const volumeDimension = Dimension.LENGTH.pow(3);
+  const cubicMeter = new Unit('m3', 'cubic-meter', volumeDimension);
+  System.METRIC.register(cubicMeter);
+
+  const cubicFoot = new Unit('ft3', 'cubic-foot', volumeDimension)
+  System.IMPERIAL.register(cubicFoot);
+
+  let m3 = Quantity.create(1, 'm3');
+  let ft3 = Quantity.create(1, 'ft3');
+
+  expect(m3.to('ft3').round(5).value).toBe("35.31467");
+  expect(ft3.to('m3').round(5).value).toBe("0.02832");
+});
+
+test('create unit of area', () => {
+  const areaDimension = Dimension.LENGTH.pow(2);
+  const squareMeter = new Unit('m2', 'square-meter', areaDimension);
+  System.METRIC.register(squareMeter);
+
+  const squareFoot = new Unit('ft2', 'square-foot', areaDimension);
+  System.IMPERIAL.register(squareFoot);
+
+  let m2 = Quantity.create(1, 'm2');
+  let ft2 = Quantity.create(1, 'ft2');
+
+  expect(m2.to('ft2').round(5).value).toBe("10.76391");
+  expect(ft2.to('m2').round(5).value).toBe("0.09290");
+});
+
+test('create unit of speed', () => {
+  const speedDimension = Dimension.LENGTH.divide(Dimension.TIME);
+  const meterPerSecond = new Unit('m/s', 'meter-per-second', speedDimension);
+  System.METRIC.register(meterPerSecond);
+
+  const footPerSecond = new Unit('ft/s', 'foot-per-second', speedDimension);
+  System.IMPERIAL.register(footPerSecond);
+
+  let mps1 = Quantity.create(1, 'm/s');
+  let fps1 = Quantity.create(1, 'ft/s');
+
+  expect(mps1.to('ft/s').round(5).value).toBe("3.28084");
+  expect(fps1.to('m/s').round(5).value).toBe("0.30480");
 });

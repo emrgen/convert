@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@types/lodash':
+        specifier: ^4.17.7
+        version: 4.17.7
       js-big-decimal:
         specifier: ^2.0.7
         version: 2.0.7
@@ -327,6 +330,9 @@ packages:
 
   '@types/estree@1.0.5':
     resolution: {integrity: sha512-/kYRxGDLWzHOB7q+wtSUQlFrtcdUccpfy+X+9iMBpHK8QLLhx2wIPYuS5DYtR9Wa/YlZAbIovy7qVdB1Aq6Lyw==}
+
+  '@types/lodash@4.17.7':
+    resolution: {integrity: sha512-8wTvZawATi/lsmNu10/j2hk1KEP0IvjubqPE3cu1Xz7xfXXt5oCq3SNUz4fMIP4XGF9Ky+Ue2tBA3hcS7LSBlA==}
 
   '@typescript-eslint/eslint-plugin@7.16.0':
     resolution: {integrity: sha512-py1miT6iQpJcs1BiJjm54AMzeuMPBSPuKPlnT8HlfudbcS5rYeX5jajpLf3mrdRh9dA/Ec2FVUY0ifeVNDIhZw==}
@@ -1224,6 +1230,8 @@ snapshots:
     optional: true
 
   '@types/estree@1.0.5': {}
+
+  '@types/lodash@4.17.7': {}
 
   '@typescript-eslint/eslint-plugin@7.16.0(@typescript-eslint/parser@7.16.0(eslint@9.7.0)(typescript@5.5.3))(eslint@9.7.0)(typescript@5.5.3)':
     dependencies:
