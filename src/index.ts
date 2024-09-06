@@ -1,5 +1,5 @@
 import BigDecimal from 'js-big-decimal';
-import {isString} from 'lodash';
+import {entries, isString, reduce, sum} from 'lodash';
 
 export class Quantity {
   amount: BigDecimal;
@@ -104,29 +104,14 @@ export class Quantity {
   }
 }
 
-const conditions = [
-  {length: 1, mass: 0, time: 0, count: 0},
-  {length: 0, mass: 1, time: 0, count: 0},
-  {length: 0, mass: 0, time: 1, count: 0},
-  {length: 0, mass: 0, time: 0, count: 1},
-];
 
-enum UnitType {
-  LENGTH = 'length',
-  MASS = 'mass',
-  TIME = 'time',
-  COUNT = 'count',
-  TEMPERATURE = 'temperature',
-}
+
+type UnitType = string;
 
 export class Dimension {
-  length: number
-  mass: number
-  time: number
-  count: number
-  temperature: number
+  types: Record<string, number> = {}
 
-  static NONE = new Dimension({length: 0, mass: 0, time: 0, count: 0, temperature: 0});
+  static NONE = new Dimension({});
 
   static COUNT = new Dimension({length: 0, mass: 0, time: 0, count: 1, temperature: 0});
   static LENGTH = new Dimension({length: 1, mass: 0, time: 0, count: 0, temperature: 0});
@@ -134,61 +119,59 @@ export class Dimension {
   static TIME = new Dimension({length: 0, mass: 0, time: 1, count: 0, temperature: 0});
   static TEMPERATURE = new Dimension({length: 0, mass: 0, time: 0, count: 0, temperature: 1});
 
+  static create(dim: Record<string, number>) {
+    return new Dimension(dim);
+  }
+
+  entries() {
+    return entries(this.types).filter(([_, value]) => value !== 0);
+  }
+
   get isSimple() {
-    return conditions.some(
-      condition => (
-        this.length === condition.length &&
-        this.mass === condition.mass &&
-        this.time === condition.time &&
-        this.count === condition.count
-      )
-    );
+    const kv = this.entries();
+    if (kv.length > 1) return false;
+    return sum(kv.map(([_, value]) => value)) === 1;
   }
 
   get isComplex() {
     return !this.isSimple;
   }
 
-  constructor(dim: { length: number, mass: number, time: number, count: number, temperature: number }) {
-    this.length = dim.length ?? 0;
-    this.mass = dim.mass ?? 0;
-    this.time = dim.time ?? 0;
-    this.count = dim.count ?? 0;
-    this.temperature = dim.temperature ?? 0;
+  constructor(dim: Record<string, number>) {
+    this.types = dim;
   }
 
   multiply(dim: Dimension) {
-    return new Dimension({
-      length: this.length + dim.length,
-      mass: this.mass + dim.mass,
-      time: this.time + dim.time,
-      count: this.count + dim.count,
-      temperature: this.temperature + dim.temperature,
-    });
+    const types = entries(this.types).reduce((acc, [key, value]) => {
+      acc[key] = value + dim.types[key];
+      return acc;
+    }, {} as Record<string, number>);
+    return new Dimension(types);
   }
 
   divide(dim: Dimension) {
-    return new Dimension({
-      length: this.length - dim.length,
-      mass: this.mass - dim.mass,
-      time: this.time - dim.time,
-      count: this.count - dim.count,
-      temperature: this.temperature + dim.temperature,
-    });
+    const types = entries(this.types).reduce((acc, [key, value]) => {
+      acc[key] = value - dim.types[key];
+      return acc;
+    }, {} as Record<string, number>);
+    return new Dimension(types);
   }
 
   pow(n: number) {
-    return new Dimension({
-      length: this.length * n,
-      mass: this.mass * n,
-      time: this.time * n,
-      count: this.count * n,
-      temperature: this.temperature * n,
-    });
+    const types = entries(this.types).reduce((acc, [key, value]) => {
+      acc[key] = value * n;
+      return acc;
+    }, {} as Record<string, number>);
+    return new Dimension(types);
   }
 
   toString() {
-    return `L${this.length}M${this.mass}T${this.time}C${this.count}`;
+    return entries(this.types).map(([key, value]) => {
+      if (value === 0) {
+        return '';
+      }
+      return `${key}${value}`;
+    }).join('');
   }
 }
 
@@ -312,22 +295,21 @@ export class System {
   static IMPERIAL = new System('Imperial');
   static Universal = new System('Universal');
 
+  static get systems() {
+    return [System.METRIC, System.IMPERIAL, System.Universal];
+  }
+
   register(unit: Unit) {
     this.units.set(unit.id, unit);
     Unit.register(unit);
 
     if (unit.isBaseUnit()) {
-      if (unit.dimension.length === 1) {
-        this.bases.set(UnitType.LENGTH, unit);
-      }
-      if (unit.dimension.mass === 1) {
-        this.bases.set(UnitType.MASS, unit);
-      }
-      if (unit.dimension.time === 1) {
-        this.bases.set(UnitType.TIME, unit);
-      }
-      if (unit.dimension.count === 1) {
-        this.bases.set(UnitType.COUNT, unit);
+      const kv = unit.dimension.entries();
+      if (unit.dimension.isSimple) {
+        if (entries.length === 1) {
+          const [key] = kv[0];
+          this.bases.set(key, unit);
+        }
       }
     }
 
@@ -338,6 +320,16 @@ export class System {
     this.name = name;
     this.units = new Map();
     this.bases = new Map();
+  }
+
+  similarUnits(unit: Unit|string) {
+    if (isString(unit)) {
+      unit = Unit.units.get(unit as string);
+      if (!unit) {
+        throw new Error('Unknown unit');
+      }
+    }
+    return Array.from(this.units.values()).filter(u => u.isSimilar(unit)).filter(u => u.id !== unit.id);
   }
 }
 
@@ -417,63 +409,27 @@ export class Converter {
       }
     } else {
       // convert each dimension to base unit
-      let totalFactor = new BigDecimal(1);
-      const {length, mass, time, count} = fromUint.dimension;
-      if (mass !== 0) {
-        // find the base unit for mass in the same system
-        const fromBaseUnit = fromUint.system.bases.get(UnitType.MASS);
-        const toBaseUnit = toUnit.system.bases.get(UnitType.MASS);
+      const kv = fromUint.dimension.entries();
 
+      return reduce(kv, (totalFactor, [dimensionName, dimensionValue]) => {
+        if (dimensionValue === 0) {
+          return totalFactor;
+        }
+
+        const fromBaseUnit = fromUint.system.bases.get(dimensionName);
+        const toBaseUnit = toUnit.system.bases.get(dimensionName);
         let factor = Converter.convert(1, fromBaseUnit, toBaseUnit);
         let amount = new BigDecimal(1);
-        for (let i = 0; i < Math.abs(mass); i++) {
+        for (let i = 0; i < Math.abs(dimensionValue); i++) {
           amount = amount.multiply(factor);
         }
 
-        if (mass < 0) {
+        if (dimensionValue < 0) {
           amount = (new BigDecimal(1)).divide(amount);
         }
 
-        totalFactor = totalFactor.multiply(amount);
-      }
-
-      if (length !== 0) {
-        // find the base unit for length in the same system
-        const fromBaseUnit = fromUint.system.bases.get(UnitType.LENGTH);
-        const toBaseUnit = toUnit.system.bases.get(UnitType.LENGTH);
-
-        let factor = Converter.convert(1, fromBaseUnit, toBaseUnit);
-        let amount = new BigDecimal(1);
-        for (let i = 0; i < Math.abs(length); i++) {
-          amount = amount.multiply(factor);
-        }
-
-        if (length < 0) {
-          amount = (new BigDecimal(1)).divide(amount);
-        }
-
-        totalFactor = totalFactor.multiply(amount);
-      }
-
-      if (time !== 0) {
-        // find the base unit for time in the same system
-        const fromBaseUnit = fromUint.system.bases.get(UnitType.TIME);
-        const toBaseUnit = toUnit.system.bases.get(UnitType.TIME);
-
-        let factor = Converter.convert(1, fromBaseUnit, toBaseUnit);
-        let amount = new BigDecimal(1);
-        for (let i = 0; i < Math.abs(time); i++) {
-          amount = amount.multiply(factor);
-        }
-
-        if (time < 0) {
-          amount = (new BigDecimal(1)).divide(amount);
-        }
-
-        totalFactor = totalFactor.multiply(amount);
-      }
-
-      return totalFactor;
+        return totalFactor.multiply(amount);
+      }, new BigDecimal(1));
     }
   }
 }
@@ -510,16 +466,25 @@ class Initializer {
 
     // masses
     const kilogram = new Unit('kg', 'kilogram', Dimension.MASS);
-    const gram = new Unit('g', 'gram', Dimension.MASS, kilogram);
-    const milligram = new Unit('mg', 'milligram', Dimension.MASS, kilogram);
-    const microgram = new Unit('µg', 'microgram', Dimension.MASS, kilogram);
-    const nanogram = new Unit('ng', 'nanogram', Dimension.MASS, kilogram);
+    const decagram = new Unit('dag', 'decagram', Dimension.MASS, kilogram, 10);
+    const hectogram = new Unit('hg', 'hectogram', Dimension.MASS, kilogram, 100);
+    const gram = new Unit('g', 'gram', Dimension.MASS, kilogram, 0.001);
+    const milligram = new Unit('mig', 'milligram', Dimension.MASS, kilogram, 0.000001);
+    const microgram = new Unit('µg', 'microgram', Dimension.MASS, kilogram, 0.000000001);
+    const nanogram = new Unit('ng', 'nanogram', Dimension.MASS, kilogram, 0.000000000001);
+
+    const ton = new Unit('t', 'ton', Dimension.MASS, kilogram, 1000);
+    const quintal = new Unit('q', 'quintal', Dimension.MASS, kilogram, 100);
 
     System.METRIC.register(kilogram);
+    System.METRIC.register(decagram);
+    System.METRIC.register(hectogram);
     System.METRIC.register(gram);
     System.METRIC.register(milligram);
     System.METRIC.register(microgram);
     System.METRIC.register(nanogram);
+    System.METRIC.register(ton);
+    System.METRIC.register(quintal);
 
     // counts
     const hundred = new Unit('hundred', 'hundred', Dimension.COUNT, count, 100);

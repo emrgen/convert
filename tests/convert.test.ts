@@ -17,6 +17,10 @@ test('custom length unit', () => {
   expect(suto1.to('in').round(5).value).toBe("0.01562");
   expect(inch1.to('suto').round(5).value).toBe("64.00000");
   expect(inch1.to('jaw').round(5).value).toBe("4.00000");
+
+  // System.systems.forEach(s => s.similarUnits('in').forEach(unit => {
+  //   console.log(unit.name);
+  // }));
 });
 
 test('unit of volume', () => {
@@ -152,16 +156,21 @@ test('create unit of pressure', () => {
 test('create unit of energy', () => {
   const energyDimension = Dimension.MASS.multiply(Dimension.LENGTH).pow(2).divide(Dimension.TIME.pow(2));
   const joule = new Unit('J', 'joule', energyDimension);
+  const calorie = new Unit('cal', 'calorie', energyDimension, joule, new BigDecimal("4.184"));
   System.METRIC.register(joule);
+  System.METRIC.register(calorie);
 
   const btu = new Unit('btu', 'british-thermal-unit', energyDimension, joule, new BigDecimal("1055.05585"));
   System.IMPERIAL.register(btu);
 
   let j1 = Quantity.create(1, 'J');
   let btu1 = Quantity.create(1, 'btu');
+  let cal1 = Quantity.create(1, 'cal');
 
   expect(j1.to('btu').round(5).value).toBe("0.00095");
   expect(btu1.to('J').round(5).value).toBe("1055.05585");
+  expect(cal1.to('J').round(5).value).toBe("4.18400");
+  expect(j1.to('cal').round(5).value).toBe("0.23901");
 });
 
 test('create unit of power', () => {
@@ -240,3 +249,32 @@ test('create unit of speed', () => {
   expect(mps1.to('ft/s').round(5).value).toBe("3.28084");
   expect(fps1.to('m/s').round(5).value).toBe("0.30480");
 });
+
+
+test('create unit of acceleration', () => {
+  const accelerationDimension = Dimension.LENGTH.divide(Dimension.TIME.pow(2));
+  const meterPerSecondSquared = new Unit('m/s2', 'meter-per-second-squared', accelerationDimension);
+  System.METRIC.register(meterPerSecondSquared);
+
+  const footPerSecondSquared = new Unit('ft/s2', 'foot-per-second-squared', accelerationDimension);
+  System.IMPERIAL.register(footPerSecondSquared);
+
+  let mps2 = Quantity.create(1, 'm/s2');
+  let fps2 = Quantity.create(1, 'ft/s2');
+
+  expect(mps2.to('ft/s2').round(5).value).toBe("3.28084");
+  expect(fps2.to('m/s2').round(5).value).toBe("0.30480");
+});
+
+test('create custom unit', () => {
+  const coulomb = new Unit('C', 'coulomb', Dimension.create({'electric-charge': 1}));
+  const volt = new Unit('V', 'volt', Dimension.create({'electric-potential': 1}));
+  const ohm = new Unit('Ω', 'ohm', Dimension.create({'electric-resistance': 1}));
+  const ampere = new Unit('A', 'ampere', Dimension.create({'electric-current': 1}));
+
+  System.METRIC.register(coulomb);
+  System.METRIC.register(ampere);
+  System.METRIC.register(volt);
+  System.METRIC.register(ohm);
+});
+
