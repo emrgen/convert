@@ -203,21 +203,18 @@ test('create unit of power', () => {
   expect(hp1.to('W').round(5).value).toBe("745.69987");
 });
 
-// check if the conversion is correct for the given units of temperature
-// NOTE: the conversion is checking temperature difference, not absolute temperature
+// C and F are registered by the library itself (src/units/temperature.ts) with
+// correct affine (offset) conversion, so this test uses those built-in units
+// instead of redefining 'C'/'F' locally, which would collide in the global
+// Unit.units symbol table.
 test('create unit of temperature', () => {
-  const temperatureDimension = Dimension.TEMPERATURE;
-  const celsius = new Unit('C', 'celsius', temperatureDimension);
-  System.METRIC.register(celsius);
-
-  const fahrenheit = new Unit('F', 'fahrenheit', temperatureDimension, celsius, new BigDecimal("0.555555556"));
-  System.IMPERIAL.register(fahrenheit);
-
   let c1 = Quantity.create(1, 'C');
   let f1 = Quantity.create(1, 'F');
+  let c0 = Quantity.create(0, 'C');
 
-  expect(c1.to('F').round(5).value).toBe("1.80000");
-  expect(f1.to('C').round(5).value).toBe("0.55556");
+  expect(c0.to('F').round(5).value).toBe("32.00000");
+  expect(c1.to('F').round(5).value).toBe("33.80000");
+  expect(f1.to('C').round(5).value).toBe("-17.22222");
 });
 
 test('create unit of volume', () => {
@@ -282,7 +279,7 @@ test('create unit of acceleration', () => {
 });
 
 test('create custom unit', () => {
-  const coulomb = new Unit('C', 'coulomb', Dimension.create({'electric-charge': 1}));
+  const coulomb = new Unit('Coul', 'coulomb', Dimension.create({'electric-charge': 1}));
   const volt = new Unit('V', 'volt', Dimension.create({'electric-potential': 1}));
   const ohm = new Unit('Ω', 'ohm', Dimension.create({'electric-resistance': 1}));
   const ampere = new Unit('A', 'ampere', Dimension.create({'electric-current': 1}));
