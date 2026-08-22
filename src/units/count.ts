@@ -21,8 +21,8 @@ export function registerCountUnits() {
   const pair = new Unit('pair', 'pair', Dimension.COUNT, count, 2);
   const dozen = new Unit('doz', 'dozen', Dimension.COUNT, count, 12);
 
-  System.IMPERIAL.register(pair);
-  System.IMPERIAL.register(dozen);
+  System.Universal.register(pair);
+  System.Universal.register(dozen);
 
   return { count, hundred, thousand, million, billion, trillion, quadrillion, pair, dozen };
 }
