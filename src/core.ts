@@ -79,9 +79,20 @@ export class Quantity {
       throw new Error('Cannot to between different types');
     }
 
-    const q = this.unit.to(toUnit)
+    const [fromBaseUnit, fromFactor, fromOffset] = this.unit.toBaseUnit();
+    const [toBaseUnit, toFactor, toOffset] = toUnit.toBaseUnit();
 
-    const amount = q.amount.multiply(this.amount)
+    // convert this amount into its own chain's base unit (affine: value * factor + offset)
+    let baseAmount = this.amount.multiply(fromFactor).add(fromOffset);
+
+    // cross-system base units (e.g. meter <-> foot) are related by a registered ratio, not a chain
+    if (!fromBaseUnit.eq(toBaseUnit)) {
+      const crossFactor = Converter.convert(1, fromBaseUnit, toBaseUnit);
+      baseAmount = baseAmount.multiply(crossFactor);
+    }
+
+    // invert the target chain's affine transform: base = value * factor + offset
+    const amount = baseAmount.subtract(toOffset).divide(toFactor, 50);
 
     return new Quantity(amount, to)
   }
@@ -182,12 +193,13 @@ export class Unit {
   system: System;
   baseUnit?: Unit;
   factor: BigDecimal;
+  offset: BigDecimal;
   dimension: Dimension;
 
   static units: Map<string, Unit> = new Map();
   static sizes: Map<string, Map<Unit, number>> = new Map();
 
-  constructor(symbol: string, name: string, dimension: Dimension, baseUnit?: Unit | string, factor: BigDecimal | number = 1) {
+  constructor(symbol: string, name: string, dimension: Dimension, baseUnit?: Unit | string, factor: BigDecimal | number = 1, offset: BigDecimal | number = 0) {
     this.id = Symbol(symbol);
     this.symbol = symbol;
     this.name = name;
@@ -207,6 +219,12 @@ export class Unit {
       this.factor = factor;
     } else {
       this.factor = new BigDecimal(factor);
+    }
+
+    if (offset instanceof BigDecimal) {
+      this.offset = offset;
+    } else {
+      this.offset = new BigDecimal(offset);
     }
   }
 
@@ -234,35 +252,18 @@ export class Unit {
     return aSize - bSize;
   }
 
-  to(to: Unit): Quantity {
-    if (!this.isSimilar(to)) {
-      throw new Error('Cannot to between different types');
-    }
-
-    const fromBase = this.toBase()
-    const toBase = to.toBase()
-
-    // console.log('fromBase', fromBase, toBase)
-    // covert 1 unit from source to target unit
-    const factor = Converter.convert(1, fromBase.unit, toBase.unit);
-    // console.log(fromBase.amount, factor, toBase.amount)
-    const amount = fromBase.amount.multiply(factor).divide(toBase.amount, 50);
-
-    return new Quantity(amount, to);
-  }
-
   toBase() {
     const [unit, factor] = this.toBaseUnit();
     return new Quantity(factor, unit);
   }
 
-  private toBaseUnit() {
+  toBaseUnit(): [Unit, BigDecimal, BigDecimal] {
     if (!this.baseUnit) {
-      return [this, this.factor];
+      return [this, this.factor, this.offset];
     }
 
-    let [baseUnit, factor] = this.baseUnit.toBaseUnit()
-    return [baseUnit, factor.multiply(this.factor)]
+    const [baseUnit, factor, offset] = this.baseUnit.toBaseUnit();
+    return [baseUnit, factor.multiply(this.factor), offset.add(this.offset.multiply(factor))];
   }
 
   isSimilar(unit: Unit) {
