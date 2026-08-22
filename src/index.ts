@@ -68,7 +68,7 @@ export class Quantity {
 
     if (isString(to)) {
       toUnit = Unit.units.get(to as string);
-      if (!to) {
+      if (!toUnit) {
         throw new Error('Unknown unit');
       }
     } else {
@@ -187,7 +187,7 @@ export class Unit {
   static units: Map<string, Unit> = new Map();
   static sizes: Map<string, Map<Unit, number>> = new Map();
 
-  constructor(name: string, symbol: string, dimension: Dimension, baseUnit?: Unit | string, factor: BigDecimal | number = 1) {
+  constructor(symbol: string, name: string, dimension: Dimension, baseUnit?: Unit | string, factor: BigDecimal | number = 1) {
     this.id = Symbol(symbol);
     this.symbol = symbol;
     this.name = name;
@@ -215,12 +215,12 @@ export class Unit {
   }
 
   static register(unit: Unit) {
-    Unit.units.set(unit.name, unit);
+    Unit.units.set(unit.symbol, unit);
     const origin = unit.toBase();
 
-    const map = Unit.sizes.get(unit.name) ?? new Map();
+    const map = Unit.sizes.get(unit.symbol) ?? new Map();
     map.set(unit, origin.amount.getValue());
-    Unit.sizes.set(unit.name, map);
+    Unit.sizes.set(unit.symbol, map);
   }
 
   get type() {
@@ -228,8 +228,8 @@ export class Unit {
   }
 
   static compareBySize(a: Unit, b: Unit) {
-    const aSize = Unit.sizes.get(a.name).get(a);
-    const bSize = Unit.sizes.get(b.name).get(b);
+    const aSize = Unit.sizes.get(a.symbol).get(a);
+    const bSize = Unit.sizes.get(b.symbol).get(b);
 
     return aSize - bSize;
   }
@@ -306,7 +306,7 @@ export class System {
     if (unit.isBaseUnit()) {
       const kv = unit.dimension.entries();
       if (unit.dimension.isSimple) {
-        if (entries.length === 1) {
+        if (kv.length === 1) {
           const [key] = kv[0];
           this.bases.set(key, unit);
         }
@@ -374,30 +374,30 @@ export class Converter {
       toUnit = to as Unit;
     }
 
-    let fromUint: Unit = null;
+    let fromUnit: Unit = null;
     if (isString(from)) {
-      fromUint = Unit.units.get(from as string)
-      if (!fromUint) {
+      fromUnit = Unit.units.get(from as string)
+      if (!fromUnit) {
         throw new Error('Unknown unit');
       }
     } else {
-      fromUint = from as Unit;
+      fromUnit = from as Unit;
     }
 
-    if (!fromUint.isSimilar(toUnit)) {
+    if (!fromUnit.isSimilar(toUnit)) {
       throw new Error('Cannot to between different types');
     }
 
-    // console.log('from', fromUint.toJSON());
+    // console.log('from', fromUnit.toJSON());
     // console.log('to', toUnit.toJSON());
     // console.log('');
 
-    if (fromUint.eq(toUnit)) {
+    if (fromUnit.eq(toUnit)) {
       return new BigDecimal(1);
     }
 
-    if (fromUint.dimension.isSimple && toUnit.dimension.isSimple) {
-      const conversion = Converter.conversions.get(fromUint).get(toUnit);
+    if (fromUnit.dimension.isSimple && toUnit.dimension.isSimple) {
+      const conversion = Converter.conversions.get(fromUnit).get(toUnit);
 
       let amount: BigDecimal;
       if (q instanceof BigDecimal) {
@@ -413,14 +413,14 @@ export class Converter {
       }
     } else {
       // convert each dimension to base unit
-      const kv = fromUint.dimension.entries();
+      const kv = fromUnit.dimension.entries();
 
       return reduce(kv, (totalFactor, [dimensionName, dimensionValue]) => {
         if (dimensionValue === 0) {
           return totalFactor;
         }
 
-        const fromBaseUnit = fromUint.system.bases.get(dimensionName);
+        const fromBaseUnit = fromUnit.system.bases.get(dimensionName);
         const toBaseUnit = toUnit.system.bases.get(dimensionName);
         let factor = Converter.convert(1, fromBaseUnit, toBaseUnit);
         let amount = new BigDecimal(1);
@@ -473,7 +473,7 @@ class Initializer {
     const decagram = new Unit('dag', 'decagram', Dimension.MASS, kilogram, 10);
     const hectogram = new Unit('hg', 'hectogram', Dimension.MASS, kilogram, 100);
     const gram = new Unit('g', 'gram', Dimension.MASS, kilogram, 0.001);
-    const milligram = new Unit('mig', 'milligram', Dimension.MASS, kilogram, 0.000001);
+    const milligram = new Unit('mg', 'milligram', Dimension.MASS, kilogram, 0.000001);
     const microgram = new Unit('µg', 'microgram', Dimension.MASS, kilogram, 0.000000001);
     const nanogram = new Unit('ng', 'nanogram', Dimension.MASS, kilogram, 0.000000000001);
 
